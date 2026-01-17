@@ -170,12 +170,6 @@ pydantic>=2.5.0
 
 Results will be available after running the notebooks:
 
-```
-
-## Results
-
-Results will be available after running the notebooks:
-
 - Model comparison table: notebook 03
 - Best model selection: notebook 03
 - Kaggle submission: `submissions/final_submission.csv`
@@ -209,4 +203,3 @@ Module: CIS6005 Computational Intelligence
 
 ITMO-HDU Flat Price Prediction 2025-2026
 <https://www.kaggle.com/competitions/itmo-flat-price-prediction-2025-2026>
-```
