@@ -31,17 +31,18 @@ ENV/
 *.ipynb_checkpoints
 
 # Data files
-data/raw/*.csv
-data/processed/*.csv
+data/
 *.csv
 *.xlsx
 
 # Model files
-models/*.pkl
-models/*.h5
-models/*.joblib
-models/*.pt
-models/*.pth
+models/
+*.pkl
+*.h5
+*.joblib
+*.pt
+*.pth
+*.keras
 
 # Logs
 logs/
