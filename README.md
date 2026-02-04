@@ -4,7 +4,7 @@
 
 ## Overview
 
-This project implements a complete machine learning pipeline for predicting flat/apartment prices using multiple models including Linear Regression, Random Forest, XGBoost, and Neural Networks. The project includes a production-ready REST API built with FastAPI.
+This project implements a complete machine learning pipeline for predicting flat/apartment prices using multiple models including Linear Regression, Random Forest, XGBoost, and Neural Networks. The project includes a user-friendly web interface built with Streamlit for making predictions.
 
 ## Project Structure
 
@@ -21,12 +21,9 @@ CIS6005-Flat-Price-Prediction/
 │   ├── 02_Preprocessing.ipynb      # Data cleaning & feature engineering
 │   ├── 03_Model_Development.ipynb  # Train 4 ML models
 │   └── 04_Model_Evaluation.ipynb   # Evaluation & Kaggle submission
-├── api/                            # Production REST API
-│   ├── main.py                     # FastAPI application
-│   ├── schemas.py                  # Pydantic request/response models
-│   └── model_loader.py             # Model loading utilities
 ├── models/                         # Saved trained models (generated)
 ├── submissions/                    # Kaggle submission files (generated)
+├── app.py                          # Streamlit web application
 ├── requirements.txt                # Python dependencies
 └── README.md                       # This file
 ```
@@ -51,65 +48,44 @@ Place files in `data/raw/`:
 
 ## Usage
 
-### Run Notebooks
+### 1. Train Models
 
-Execute notebooks in sequence:
-
-```bash
-jupyter notebook notebooks/01_EDA.ipynb
-jupyter notebook notebooks/02_Preprocessing.ipynb
-jupyter notebook notebooks/03_Model_Development.ipynb
-jupyter notebook notebooks/04_Model_Evaluation.ipynb
-```
-
-Or run all at once:
+Execute notebooks in sequence to prepare data and train models:
 
 ```bash
 jupyter notebook
 ```
 
-### Run API Server
+Run notebooks in order:
 
-After training models (notebook 03), start the API:
+1. `01_EDA.ipynb` - Explore the data
+2. `02_Preprocessing.ipynb` - Clean and prepare features
+3. `03_Model_Development.ipynb` - Train all models
+4. `04_Model_Evaluation.ipynb` - Evaluate and generate Kaggle submission
+
+### 2. Launch Streamlit App
+
+After training models, start the web interface:
 
 ```bash
-python -m uvicorn api.main:app --reload --port 8000
+streamlit run app.py
 ```
 
-Access API documentation: <http://localhost:8000/docs>
+The app will automatically open in your browser at `http://localhost:8501`
 
-### Test API
+### 3. Make Predictions
 
-```bash
-curl -X POST "http://localhost:8000/predict" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "kitchen_area": 10.5,
-    "bath_area": 4.0,
-    "other_area": 2.0,
-    "gas": 1,
-    "hot_water": 1,
-    "central_heating": 1,
-    "extra_area": 5.0,
-    "extra_area_count": 1,
-    "year": 2010,
-    "ceil_height": 2.7,
-    "floor_max": 10,
-    "floor": 5,
-    "total_area": 65.0,
-    "bath_count": 1,
-    "extra_area_type_name": "balcony",
-    "district_name": "Central",
-    "rooms_count": 2
-  }'
-```
+1. Enter flat details in the web form
+2. Click "Predict Price" to get instant predictions
+3. View the predicted price and price per square meter
+
+The app automatically loads the best performing model from your training session.
 
 ## Models Implemented
 
-1. **Linear Regression** - Baseline model
-2. **Random Forest** - Ensemble of decision trees
-3. **XGBoost** - Gradient boosting
-4. **Neural Network** - Multi-layer perceptron (128→64→32 architecture)
+1. **Random Forest** - Ensemble of decision trees
+2. **XGBoost** - Gradient boosting
+3. **Neural Network** - Multi-layer perceptron (128→64→32 architecture)
 
 ## Features
 
@@ -141,13 +117,14 @@ curl -X POST "http://localhost:8000/predict" \
 - **R²**: Coefficient of determination (higher is better, max 1.0)
 - **MAPE**: Mean Absolute Percentage Error (interpretability)
 
-## API Endpoints
+## Web Application Features
 
-- `GET /` - API information
-- `GET /health` - Health check
-- `GET /model-info` - Model metadata
-- `POST /predict` - Single flat price prediction
-- `POST /predict/batch` - Batch predictions
+- **Interactive UI**: User-friendly interface for entering flat details
+- **Instant Predictions**: Real-time price predictions using trained models
+- **Multiple Views**: Prediction interface and project documentation
+- **Modern Design**: Clean, responsive interface with gradient styling
+- **Metrics Display**: Shows predicted price, price per m², and key stats
+- **Automatic Model Loading**: Uses the best performing model automatically
 
 ## Dependencies
 
@@ -161,9 +138,7 @@ xgboost>=2.0.0
 tensorflow>=2.15.0
 jupyter>=1.0.0
 joblib>=1.3.0
-fastapi>=0.104.0
-uvicorn>=0.24.0
-pydantic>=2.5.0
+streamlit>=1.28.0
 ```
 
 ## Results
