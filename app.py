@@ -1,6 +1,9 @@
+from typing import Any
+
 import streamlit as st
 import numpy as np
 import joblib
+import keras
 from pathlib import Path
 
 st.set_page_config(
@@ -36,20 +39,19 @@ st.markdown("""
 
 
 @st.cache_resource
-def load_model():
+def load_model() -> tuple[Any, str, Any, dict[str, Any]] | tuple[None, None, None, None]:
     try:
         # Load best model name
         model_path = Path('models/best_model.txt')
         if not model_path.exists():
             st.error("Model configuration not found. Please train models first using the notebooks.")
-            return None, None
-        
+            return None, None, None, None
+
         with open(model_path, 'r') as f:
             model_name = f.read().strip()
-        
+
         # Load the appropriate model
         if model_name == 'Neural Network':
-            from tensorflow import keras
             model = keras.models.load_model('models/neural_network.keras')
         elif model_name == 'XGBoost':
             model = joblib.load('models/xgboost.pkl')
@@ -59,35 +61,39 @@ def load_model():
             model = joblib.load('models/linear_regression.pkl')
         else:
             st.error(f"Unknown model type: {model_name}")
-            return None, None
-        
-        return model, model_name
+            return None, None, None, None
+
+        # Load scaler and label encoders
+        scaler = joblib.load('models/scaler.pkl')
+        label_encoders = joblib.load('models/label_encoders.pkl')
+
+        return model, model_name, scaler, label_encoders
     except Exception as e:
         st.error(f"Error loading model: {str(e)}")
-        return None, None
+        return None, None, None, None
 
 
-def create_feature_array(inputs):
+def create_feature_array(inputs, scaler, label_encoders):
     # Calculate derived features
     floor_ratio = inputs['floor'] / inputs['floor_max'] if inputs['floor_max'] > 0 else 0
     is_ground_floor = 1 if inputs['floor'] == 1 else 0
     is_top_floor = 1 if inputs['floor'] == inputs['floor_max'] else 0
-    living_area = inputs['total_area'] - inputs['kitchen_area'] - inputs['bath_area']
-    
-    # Encode categorical features
-    extra_area_mapping = {
-        'None': 0, 'Balcony': 1, 'Loggia': 2, 'Terrace': 3, 'Other': 4
-    }
-    district_mapping = {
-        'Center': 0, 'North': 1, 'South': 2, 'East': 3, 'West': 4,
-        'Northeast': 5, 'Northwest': 6, 'Southeast': 7, 'Southwest': 8, 'Other': 9
-    }
-    
-    extra_area_encoded = extra_area_mapping.get(inputs['extra_area_type'], 0)
-    district_encoded = district_mapping.get(inputs['district'], 0)
-    
-    # Create feature array in the correct order
-    features = np.array([[
+    living_area = max(inputs['total_area'] - inputs['kitchen_area'] - inputs['bath_area'], 0)
+
+    # Encode categorical features using the trained label encoders
+    extra_area_encoded = label_encoders['extra_area_type_name'].transform([inputs['extra_area_type']])[0]
+    district_encoded = label_encoders['district_name'].transform([inputs['district']])[0]
+
+    # Feature names in the correct order (matching training)
+    feature_names = [
+        'kitchen_area', 'bath_area', 'gas', 'hot_water', 'central_heating',
+        'extra_area', 'extra_area_count', 'year', 'ceil_height', 'floor_max',
+        'floor', 'total_area', 'bath_count', 'extra_area_type_name',
+        'district_name', 'rooms_count', 'floor_ratio', 'is_ground_floor',
+        'is_top_floor', 'living_area'
+    ]
+
+    values = np.array([[
         inputs['kitchen_area'],
         inputs['bath_area'],
         inputs['gas'],
@@ -109,8 +115,10 @@ def create_feature_array(inputs):
         is_top_floor,
         living_area
     ]])
-    
-    return features
+
+    # Apply the same scaling used during training
+    features_scaled = scaler.transform(values)
+    return features_scaled
 
 def main():
     # Initialize session state for predictions
@@ -121,9 +129,9 @@ def main():
     st.markdown('<h1 class="main-header">🏠 Flat Price Prediction System</h1>', unsafe_allow_html=True)
     
     # Load model
-    model, model_name = load_model()
-    
-    if model is None:
+    model, model_name, scaler, label_encoders = load_model()
+
+    if model is None or scaler is None or label_encoders is None:
         st.warning("⚠️ Please train the models first by running the notebooks in sequence (01-04).")
         return
     
@@ -148,8 +156,7 @@ def main():
             bath_area = st.number_input("Bathroom Area (m²)", min_value=1.0, max_value=20.0, value=4.0, step=0.5)
             extra_area = st.number_input("Extra Area (m²)", min_value=0.0, max_value=50.0, value=5.0, step=0.5)
             extra_area_count = st.number_input("Extra Area Count", min_value=0, max_value=10, value=1)
-            extra_area_type = st.selectbox("Extra Area Type", 
-                                          ['None', 'Balcony', 'Loggia', 'Terrace', 'Other'])
+            extra_area_type = st.selectbox("Extra Area Type", list(label_encoders['extra_area_type_name'].classes_))
     
     with col2:
         st.subheader("Building Details")
@@ -162,9 +169,7 @@ def main():
         st.subheader("Flat Configuration")
         rooms_count = st.number_input("Number of Rooms", min_value=1, max_value=10, value=2, step=1)
         bath_count = st.number_input("Number of Bathrooms", min_value=1, max_value=5, value=1, step=1)
-        district = st.selectbox("District", 
-                                ['Center', 'North', 'South', 'East', 'West', 
-                                'Northeast', 'Northwest', 'Southeast', 'Southwest', 'Other'])
+        district = st.selectbox("District", list(label_encoders['district_name'].classes_))
         
         st.subheader("Amenities")
         gas = st.checkbox("Gas", value=True)
@@ -192,7 +197,7 @@ def main():
     }
 
     # Create feature array
-    features = create_feature_array(inputs)
+    features = create_feature_array(inputs, scaler, label_encoders)
 
     # Make prediction and display in sidebar
     with st.sidebar:
